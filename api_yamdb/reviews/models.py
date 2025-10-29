@@ -38,7 +38,7 @@ class Titles(models.Model):
 
     def clean(self):
         current_year = dt.datetime.now().year
-        if self.year >= current_year:
+        if self.year > current_year:
             raise ValidationError({
                 'year': f'Год должен быть меньше {current_year}.'
             })
