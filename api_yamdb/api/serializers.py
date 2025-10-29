@@ -18,7 +18,7 @@ class TitleSerializer(serializers.ModelSerializer):
     def get_rating(self, obj):
         """Вычисляем средний рейтинг на основе всех отзывов."""
         avg_score = obj.reviews.aggregate(Avg('score'))['score__avg']
-        return round(avg_score, 1) if avg_score is not None else None
+        return round(avg_score) if avg_score is not None else None
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -30,7 +30,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ('id', 'title', 'text', 'author', 'score', 'pub_date')
-        read_only_fields = ('title', 'author', 'pub_date')
+        read_only_fields = ('title', 'author')
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -42,4 +42,4 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ('id', 'review', 'text', 'author', 'pub_date')
-        read_only_fields = ('review', 'author', 'pub_date')
+        read_only_fields = ('review', 'author')
