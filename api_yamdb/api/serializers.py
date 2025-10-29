@@ -48,11 +48,24 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_genre(self, value):
+        genres = []
+        not_found_genres = []
+        for genre_slug in value:
+            try:
+                genres.append(Genre.objects.get(slug=genre_slug))
+            except Genre.DoesNotExist:
+                not_found_genres.append(genre_slug)
+        if not_found_genres:
+            raise serializers.ValidationError(f'Жанры {not_found_genres} не существуют')
+        return genres
+
+
     def create(self, validated_data):
-        genre_slugs = validated_data.pop('genre')
+        genres = validated_data.pop('genre')
         title = Titles.objects.create(**validated_data)
-        for genre_slug in genre_slugs:
-            current_genre = Genre.objects.get(slug=genre_slug)
+        for genre in genres:
+            current_genre = genre
             GenreTitles.objects.create(genre_id=current_genre, title_id=title)
         return title
 

@@ -1,4 +1,7 @@
+import datetime as dt
+
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Category(models.Model):
@@ -32,6 +35,17 @@ class Titles(models.Model):
         related_name='titles', blank=True, null=True
     )
     genre = models.ManyToManyField(Genre, through='GenreTitles')
+
+    def clean(self):
+        current_year = dt.datetime.now().year
+        if self.year >= current_year:
+            raise ValidationError({
+                'year': f'Год должен быть меньше {current_year}.'
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

@@ -3,11 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import permissions
 from rest_framework import filters
-from rest_framework import mixins
 
 from reviews.models import Category, Genre, Titles
 from .serializers import (CategorySerializer, GenreSerializer,
                           TitlesWritesSerializer, TitlesReadSerializer)
+from .mixins import ListCreateDeleteViewSet
 
 
 class TitlesViewSet(viewsets.ModelViewSet):
@@ -41,16 +41,6 @@ class TitlesViewSet(viewsets.ModelViewSet):
         instance = write_serializer.save()
         read_serializer = TitlesReadSerializer(instance)
         return Response(read_serializer.data)
-
-
-class ListCreateDeleteViewSet(
-    mixins.ListModelMixin, mixins.CreateModelMixin,
-    mixins.DestroyModelMixin, viewsets.GenericViewSet
-):
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
-    lookup_field = 'slug'
-    lookup_url_kwarg = 'slug'
 
 
 class GenreViewSet(ListCreateDeleteViewSet):
