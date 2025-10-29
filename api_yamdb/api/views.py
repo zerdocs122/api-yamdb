@@ -4,13 +4,15 @@ import secrets
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from rest_framework import filters
+from rest_framework import generics
 from rest_framework import viewsets
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .permissions import IsAdmin
 from .serializers import EmailConfirmationSerializer, RetriveTokenSerializer
 from .utils import send_confirmation_to_email as send_email
 
@@ -84,7 +86,50 @@ def token_get_view(request):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    """ViewSet для работы с пользователями по API."""
+    """ViewSet для работы с пользователями по эндпоинту /users/.
 
-    queryset = User.objects.all()
+    Вьюсет отдает список пользователей администратору при GET запросе и
+    позволяет создать пользователя при POST запросе.
+
+    Через этот вьюсет администратор может получать информацию о конкретном
+    пользователе через GET-запрос, обновлять информацию о пользователе через
+    PATCH-запрос, удалять пользователя через DELETE-запрос.
+
+    Отдельно для эндпоинта /users/me/ доступна возможность зарегистрирвоанному
+    пользователю увидеть свои данные через GET-запрос и обновить данные через
+    PATCH-запрос.
+    """
+
+    queryset = User.objects.all().order_by('id')
     serializer_class = UserSerializer
+    permission_classes = [IsAdmin]
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('username',)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_object(self):
+        """Функция получения объекта пользователя из запроса."""
+        return get_object_or_404(self.queryset, username=self.kwargs.get('pk'))
+
+    @action(
+        ['GET', 'PATCH'],
+        permission_classes=(IsAuthenticated,),
+        detail=False,
+        url_path='me',
+    )
+    def me_view_function(self, request):
+        """Функция обработки запросов через эндпоинт /users/me/."""
+        if request.method == 'GET':
+            serializer = self.serializer_class(request.user)
+            return Response(serializer.data, status=HTTPStatus.OK)
+        serializer = self.serializer_class(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
+        serializer.update(request.user, serializer.validated_data)
+        return Response(serializer.data, status=HTTPStatus.OK)

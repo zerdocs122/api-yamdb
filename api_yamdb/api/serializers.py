@@ -98,4 +98,36 @@ class UserSerializer(serializers.ModelSerializer):
         """Meta-класс сериализатора."""
 
         model = User
-        fields = '__all__'
+        fields = (
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'bio',
+            'role'
+        )
+
+    def validate_username(self, value):
+        """Метод проверки поля username.
+
+        Метод проверяет, что переданное значение имени пользователя
+        не равно 'me'.
+        """
+        if value == 'me':
+            raise serializers.ValidationError(
+                'me - недопустимое имя пользователя.'
+            )
+        return value
+
+    def update(self, instance, validated_data):
+        """Метод обновления данных пользователя.
+
+        Обновляем пользовательские данные, убирая данные о роли пользователя
+        при PATCH запросе на энд-поинт /users/me/, если пользователь
+        не является администратором.
+        """
+        validated_data.pop('role', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

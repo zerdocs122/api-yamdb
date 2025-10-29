@@ -1,9 +1,10 @@
+"""Содержание основной модели пользователя."""
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
 class User(AbstractUser):
-    """Расширенная модель пользователя."""
+    """Задание расширенной модели пользователя."""
 
     ROLE_CHOICES = [
         ('user', 'Аутентифицированный пользователь'),
@@ -34,3 +35,9 @@ class User(AbstractUser):
             name='Поля email и username должны быть уникальными.'
         )
     ]
+
+    class Meta:
+        """Переопределние имен модели User."""
+
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"

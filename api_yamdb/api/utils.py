@@ -1,3 +1,4 @@
+"""Вспомогательные функции проекта."""
 from django.core.mail import EmailMessage
 
 
