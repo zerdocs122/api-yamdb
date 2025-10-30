@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
 from reviews.models import (
-    Category, Comment, Genre, GenreTitles, Review, Titles
+    Category, Comment, Genre, GenreTitles, Review, Title
 )
 
 
@@ -69,7 +69,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = Titles
+        model = Title
         fields = ('id', 'name', 'year', 'description', 'category', 'genre')
 
     def validate_year(self, value):
@@ -96,7 +96,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         genres = validated_data.pop('genre')
-        title = Titles.objects.create(**validated_data)
+        title = Title.objects.create(**validated_data)
         for genre in genres:
             current_genre = genre
             GenreTitles.objects.create(genre_id=current_genre, title_id=title)
@@ -129,7 +129,7 @@ class TitlesReadSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
 
     class Meta:
-        model = Titles
+        model = Title
         fields = [
             'id', 'name', 'year', 'description', 'category', 'genre', 'rating'
         ]
@@ -140,7 +140,26 @@ class TitlesReadSerializer(serializers.ModelSerializer):
         return round(avg_score) if avg_score is not None else None
 
 
-class EmailConfirmationSerializer(serializers.Serializer):
+class CheckUsernameSerializer(serializers.Serializer):
+    """Сериализатор для валидации поля username."""
+
+    def validate_username(self, value):
+        """Метод проверки поля username.
+
+        Метод проверяет, что переданное значение имени пользователя
+        не равно 'me'.
+        """
+        if value == 'me':
+            raise serializers.ValidationError(
+                'me - недопустимое имя пользователя.'
+            )
+        return value
+
+
+class EmailConfirmationSerializer(
+    CheckUsernameSerializer,
+    serializers.Serializer
+):
     """Сериализатор для регистрации пользователя через API."""
 
     email = serializers.EmailField(max_length=254, required=True)
@@ -155,19 +174,6 @@ class EmailConfirmationSerializer(serializers.Serializer):
 
         model = User
         fields = ('username', 'email')
-
-    def validate_username(self, value):
-        """Метод проверки поля username.
-
-        Метод проверяет, что переданное значение имени пользователя
-        не равно 'me'.
-        """
-        if value == 'me':
-            raise serializers.ValidationError(
-                'me - недопустимое имя пользователя.'
-            )
-        return value
-
 
     def validate(self, attrs):
         """Метод проверки полей username и email.
@@ -228,7 +234,7 @@ class RetriveTokenSerializer(serializers.Serializer):
     confirmation_code = serializers.CharField(max_length=50, required=True)
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer, CheckUsernameSerializer):
     """Сериализатор модели User."""
 
     class Meta:
@@ -243,18 +249,6 @@ class UserSerializer(serializers.ModelSerializer):
             'bio',
             'role'
         )
-
-    def validate_username(self, value):
-        """Метод проверки поля username.
-
-        Метод проверяет, что переданное значение имени пользователя
-        не равно 'me'.
-        """
-        if value == 'me':
-            raise serializers.ValidationError(
-                'me - недопустимое имя пользователя.'
-            )
-        return value
 
     def update(self, instance, validated_data):
         """Метод обновления данных пользователя.

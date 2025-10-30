@@ -29,7 +29,7 @@ class Genre(models.Model):
         return self.name
 
 
-class Titles(models.Model):
+class Title(models.Model):
     """Модель: произведения."""
 
     name = models.CharField(max_length=256)
@@ -59,14 +59,14 @@ class Titles(models.Model):
 class GenreTitles(models.Model):
     """Модель: связующая между моделями произведения и жанры."""
 
-    title_id = models.ForeignKey(Titles, on_delete=models.CASCADE)
+    title_id = models.ForeignKey(Title, on_delete=models.CASCADE)
     genre_id = models.ForeignKey(Genre, on_delete=models.CASCADE)
 
 
 class Review(models.Model):
 
     title = models.ForeignKey(
-        Titles,
+        Title,
         on_delete=models.CASCADE,
         related_name='reviews')
 

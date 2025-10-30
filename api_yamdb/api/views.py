@@ -8,11 +8,16 @@ from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
+from django_filters.rest_framework import DjangoFilterBackend
 
-from .permissions import IsAdmin
+from .constants import ACCEPTABLE_HTTP_METHODS
 from .mixins import ListCreateDeleteViewSet
-from reviews.models import Category, Genre, Review, Titles
+from .permissions import (
+    IsAdmin, IsAdminOrReadOnly, IsAuthorOrModeratorsOrReadOnly
+)
+from reviews.models import Category, Genre, Review, Title
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
@@ -25,6 +30,7 @@ from .serializers import (
     UserSerializer
 )
 from .utils import send_confirmation_to_email as send_email
+from .filters import TitlesFilter
 
 
 User = get_user_model()
@@ -33,12 +39,13 @@ User = get_user_model()
 class ReviewViewSet(viewsets.ModelViewSet):
     """ViewSet для отзывов."""
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthorOrModeratorsOrReadOnly]
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @property
     def title_object(self):
         "Возвращает объект произведения для текущего запроса."
-        return get_object_or_404(Titles, pk=self.kwargs.get('title_id'))
+        return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
 
     def get_queryset(self):
         """Отзывы только к конкретному произведению."""
@@ -46,13 +53,18 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Привязываем автора и произведение автоматически."""
+        if self.get_queryset().filter(author=self.request.user).exists():
+            raise ValidationError(
+                {'detail': 'Вы уже оставляли отзыв на это произведение'}
+            )
         serializer.save(author=self.request.user, title=self.title_object)
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     """ViewSet для комментариев."""
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthorOrModeratorsOrReadOnly]
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @property
     def review_object(self):
@@ -75,9 +87,11 @@ class CommentViewSet(viewsets.ModelViewSet):
 class TitlesViewSet(viewsets.ModelViewSet):
     """Вьюсет: произведения."""
 
-    queryset = Titles.objects.all()
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('category__slug', 'genre__slug', 'name', 'year')
+    queryset = Title.objects.all().order_by('name')
+    filter_backends = (DjangoFilterBackend,)
+    permission_classes = [IsAdminOrReadOnly]
+    filterset_class = TitlesFilter
+    http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
         if self.request.method not in permissions.SAFE_METHODS:
@@ -108,15 +122,17 @@ class TitlesViewSet(viewsets.ModelViewSet):
 class GenreViewSet(ListCreateDeleteViewSet):
     """Вьюсет: жанры."""
 
-    queryset = Genre.objects.all()
+    queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
     """Вьюсет: категории."""
 
-    queryset = Category.objects.all()
+    queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 @api_view(['POST'])
@@ -201,7 +217,7 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = (filters.SearchFilter,)
     search_fields = ('username',)
     lookup_field = 'username'
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @action(
         ['GET', 'PATCH'],
