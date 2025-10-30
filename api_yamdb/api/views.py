@@ -9,8 +9,9 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from django_filters.rest_framework import DjangoFilterBackend
 
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrReadOnly
 from .mixins import ListCreateDeleteViewSet
 from reviews.models import Category, Genre, Review, Titles
 from .serializers import (
@@ -25,6 +26,7 @@ from .serializers import (
     UserSerializer
 )
 from .utils import send_confirmation_to_email as send_email
+from .filters import TitlesFilter
 
 
 User = get_user_model()
@@ -75,9 +77,11 @@ class CommentViewSet(viewsets.ModelViewSet):
 class TitlesViewSet(viewsets.ModelViewSet):
     """Вьюсет: произведения."""
 
-    queryset = Titles.objects.all()
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('category__slug', 'genre__slug', 'name', 'year')
+    queryset = Titles.objects.all().order_by('name')
+    # permission_classes = [IsAdminOrReadOnly]
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = TitlesFilter
+    http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
         if self.request.method not in permissions.SAFE_METHODS:
@@ -108,14 +112,14 @@ class TitlesViewSet(viewsets.ModelViewSet):
 class GenreViewSet(ListCreateDeleteViewSet):
     """Вьюсет: жанры."""
 
-    queryset = Genre.objects.all()
+    queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
     """Вьюсет: категории."""
 
-    queryset = Category.objects.all()
+    queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
 
 
