@@ -1,15 +1,33 @@
+from http import HTTPStatus
+import secrets
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, permissions
+from rest_framework import filters, permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from reviews.models import Title, Review
-from .serializers import TitleSerializer, ReviewSerializer, CommentSerializer
+from .permissions import IsAdmin
+from .mixins import ListCreateDeleteViewSet
+from reviews.models import Category, Genre, Review, Titles
+from .serializers import (
+    CategorySerializer,
+    CommentSerializer,
+    GenreSerializer,
+    EmailConfirmationSerializer,
+    RetriveTokenSerializer,
+    ReviewSerializer,
+    TitlesReadSerializer,
+    TitlesWritesSerializer,
+    UserSerializer
+)
+from .utils import send_confirmation_to_email as send_email
 
 
-class TitleViewSet(viewsets.ModelViewSet):
-    """ViewSet для произведений."""
-    queryset = Title.objects.all()
-    serializer_class = TitleSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+User = get_user_model()
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
@@ -52,16 +70,6 @@ class CommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Привязываем автора и отзыв автоматически."""
         serializer.save(author=self.request.user, review=self.review_object)
-from rest_framework import viewsets
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework import permissions
-from rest_framework import filters
-
-from reviews.models import Category, Genre, Titles
-from .serializers import (CategorySerializer, GenreSerializer,
-                          TitlesWritesSerializer, TitlesReadSerializer)
-from .mixins import ListCreateDeleteViewSet
 
 
 class TitlesViewSet(viewsets.ModelViewSet):
@@ -109,30 +117,6 @@ class CategoryViewSet(ListCreateDeleteViewSet):
 
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-from http import HTTPStatus
-import secrets
-
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
-from rest_framework import filters
-from rest_framework import generics
-from rest_framework import viewsets
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-
-from .permissions import IsAdmin
-from .serializers import EmailConfirmationSerializer, RetriveTokenSerializer
-from .utils import send_confirmation_to_email as send_email
-
-
-from users.models import User
-from api.serializers import UserSerializer
-
-
-User = get_user_model()
 
 
 @api_view(['POST'])

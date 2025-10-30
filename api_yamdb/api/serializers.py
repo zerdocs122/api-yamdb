@@ -1,24 +1,14 @@
+import datetime as dt
+
+from django.contrib.auth import get_user_model
 from django.db.models import Avg
 from rest_framework import serializers
+from rest_framework.relations import SlugRelatedField
 
-from reviews.models import Title, Review, Comment
+from reviews.models import Category, Comment, Genre, GenreTitles, Review, Titles
 
 
-class TitleSerializer(serializers.ModelSerializer):
-    """Сериализатор для произведений с вычисляемым рейтингом."""
-    rating = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Title
-        fields = (
-            'id', 'name', 'year', 'description',
-            'genre', 'category', 'rating'
-        )
-
-    def get_rating(self, obj):
-        """Вычисляем средний рейтинг на основе всех отзывов."""
-        avg_score = obj.reviews.aggregate(Avg('score'))['score__avg']
-        return round(avg_score) if avg_score is not None else None
+User = get_user_model()
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -43,12 +33,6 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ('id', 'review', 'text', 'author', 'pub_date')
         read_only_fields = ('review', 'author')
-import datetime as dt
-
-from rest_framework import serializers
-from rest_framework.relations import SlugRelatedField
-
-from reviews.models import Category, Genre, Titles, GenreTitles
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -102,7 +86,9 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
             except Genre.DoesNotExist:
                 not_found_genres.append(genre_slug)
         if not_found_genres:
-            raise serializers.ValidationError(f'Жанры {not_found_genres} не существуют')
+            raise serializers.ValidationError(
+                f'Жанры {not_found_genres} не существуют'
+            )
         return genres
 
 
@@ -136,17 +122,20 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 class TitlesReadSerializer(serializers.ModelSerializer):
     """Сериализатор: произведения, используется для метода GET."""
 
+    rating = serializers.SerializerMethodField()
     genre = GenreSerializer(many=True, read_only=True)
     category = CategorySerializer(read_only=True)
 
     class Meta:
         model = Titles
-        fields = ['id', 'name', 'year', 'description', 'category', 'genre']
-from django.contrib.auth import get_user_model
-from rest_framework import serializers
+        fields = [
+            'id', 'name', 'year', 'description', 'category', 'genre', 'rating'
+        ]
 
-
-User = get_user_model()
+    def get_rating(self, obj):
+        """Вычисляем средний рейтинг на основе всех отзывов."""
+        avg_score = obj.reviews.aggregate(Avg('score'))['score__avg']
+        return round(avg_score) if avg_score is not None else None
 
 
 class EmailConfirmationSerializer(serializers.Serializer):
