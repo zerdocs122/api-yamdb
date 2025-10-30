@@ -11,8 +11,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .permissions import IsAdmin, IsAdminOrReadOnly
+from .constants import ACCEPTABLE_HTTP_METHODS
 from .mixins import ListCreateDeleteViewSet
+from .permissions import (
+    IsAdmin, IsAdminOrReadOnly, IsAuthorOrModeratorsOrReadOnly
+)
 from reviews.models import Category, Genre, Review, Titles
 from .serializers import (
     CategorySerializer,
@@ -35,7 +38,8 @@ User = get_user_model()
 class ReviewViewSet(viewsets.ModelViewSet):
     """ViewSet для отзывов."""
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthorOrModeratorsOrReadOnly]
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @property
     def title_object(self):
@@ -54,7 +58,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     """ViewSet для комментариев."""
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthorOrModeratorsOrReadOnly]
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @property
     def review_object(self):
@@ -78,7 +83,6 @@ class TitlesViewSet(viewsets.ModelViewSet):
     """Вьюсет: произведения."""
 
     queryset = Titles.objects.all().order_by('name')
-    # permission_classes = [IsAdminOrReadOnly]
     filter_backends = (DjangoFilterBackend,)
     filterset_class = TitlesFilter
     http_method_names = ["get", "post", "patch", "delete"]
@@ -114,6 +118,7 @@ class GenreViewSet(ListCreateDeleteViewSet):
 
     queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
@@ -121,6 +126,7 @@ class CategoryViewSet(ListCreateDeleteViewSet):
 
     queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 @api_view(['POST'])
@@ -205,7 +211,7 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = (filters.SearchFilter,)
     search_fields = ('username',)
     lookup_field = 'username'
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @action(
         ['GET', 'PATCH'],
