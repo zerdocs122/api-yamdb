@@ -8,6 +8,7 @@ from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -16,7 +17,7 @@ from .mixins import ListCreateDeleteViewSet
 from .permissions import (
     IsAdmin, IsAdminOrReadOnly, IsAuthorOrModeratorsOrReadOnly
 )
-from reviews.models import Category, Genre, Review, Titles
+from reviews.models import Category, Genre, Review, Title
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
@@ -44,7 +45,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     @property
     def title_object(self):
         "Возвращает объект произведения для текущего запроса."
-        return get_object_or_404(Titles, pk=self.kwargs.get('title_id'))
+        return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
 
     def get_queryset(self):
         """Отзывы только к конкретному произведению."""
@@ -52,6 +53,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Привязываем автора и произведение автоматически."""
+        if self.get_queryset().filter(author=self.request.user).exists():
+            raise ValidationError(
+                {'detail': 'Вы уже оставляли отзыв на это произведение'}
+            )
         serializer.save(author=self.request.user, title=self.title_object)
 
 
@@ -82,7 +87,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 class TitlesViewSet(viewsets.ModelViewSet):
     """Вьюсет: произведения."""
 
-    queryset = Titles.objects.all().order_by('name')
+    queryset = Title.objects.all().order_by('name')
     filter_backends = (DjangoFilterBackend,)
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = TitlesFilter

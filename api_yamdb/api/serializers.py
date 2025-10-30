@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
 from reviews.models import (
-    Category, Comment, Genre, GenreTitles, Review, Titles
+    Category, Comment, Genre, GenreTitles, Review, Title
 )
 
 
@@ -69,7 +69,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = Titles
+        model = Title
         fields = ('id', 'name', 'year', 'description', 'category', 'genre')
 
     def validate_year(self, value):
@@ -96,7 +96,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         genres = validated_data.pop('genre')
-        title = Titles.objects.create(**validated_data)
+        title = Title.objects.create(**validated_data)
         for genre in genres:
             current_genre = genre
             GenreTitles.objects.create(genre_id=current_genre, title_id=title)
@@ -129,7 +129,7 @@ class TitlesReadSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
 
     class Meta:
-        model = Titles
+        model = Title
         fields = [
             'id', 'name', 'year', 'description', 'category', 'genre', 'rating'
         ]
