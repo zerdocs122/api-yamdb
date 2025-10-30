@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+
 User = get_user_model()
 
 
@@ -31,6 +32,7 @@ class EmailConfirmationSerializer(serializers.Serializer):
                 'me - недопустимое имя пользователя.'
             )
         return value
+
 
     def validate(self, attrs):
         """Метод проверки полей username и email.
@@ -123,8 +125,7 @@ class UserSerializer(serializers.ModelSerializer):
         """Метод обновления данных пользователя.
 
         Обновляем пользовательские данные, убирая данные о роли пользователя
-        при PATCH запросе на энд-поинт /users/me/, если пользователь
-        не является администратором.
+        при PATCH запросе на энд-поинт /users/me/.
         """
         validated_data.pop('role', None)
         for attr, value in validated_data.items():

@@ -1,5 +1,6 @@
 """Вспомогательные функции проекта."""
 from django.core.mail import EmailMessage
+from rest_framework import serializers
 
 
 def send_confirmation_to_email(user, confirmation_code):

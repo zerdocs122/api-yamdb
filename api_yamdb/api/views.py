@@ -105,11 +105,8 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdmin]
     filter_backends = (filters.SearchFilter,)
     search_fields = ('username',)
+    lookup_field = 'username'
     http_method_names = ['get', 'post', 'patch', 'delete']
-
-    def get_object(self):
-        """Функция получения объекта пользователя из запроса."""
-        return get_object_or_404(self.queryset, username=self.kwargs.get('pk'))
 
     @action(
         ['GET', 'PATCH'],
@@ -127,9 +124,6 @@ class UserViewSet(viewsets.ModelViewSet):
             data=request.data,
             partial=True
         )
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception:
-            return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
         serializer.update(request.user, serializer.validated_data)
         return Response(serializer.data, status=HTTPStatus.OK)
