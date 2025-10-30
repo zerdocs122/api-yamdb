@@ -78,6 +78,7 @@ class TitlesViewSet(viewsets.ModelViewSet):
     queryset = Titles.objects.all()
     filter_backends = (filters.SearchFilter,)
     search_fields = ('category__slug', 'genre__slug', 'name', 'year')
+    http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
         if self.request.method not in permissions.SAFE_METHODS:
