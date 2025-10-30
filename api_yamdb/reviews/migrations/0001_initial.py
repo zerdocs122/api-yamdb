@@ -45,5 +45,14 @@ class Migration(migrations.Migration):
                 ('genre_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='reviews.genre')),
                 ('title_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='reviews.titles')),
             ],
+            name='User',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('password', models.CharField(max_length=128, verbose_name='password')),
+                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
+            ],
+            options={
+                'abstract': False,
+            },
         ),
     ]
