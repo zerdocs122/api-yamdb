@@ -84,6 +84,7 @@ class TitlesViewSet(viewsets.ModelViewSet):
 
     queryset = Titles.objects.all().order_by('name')
     filter_backends = (DjangoFilterBackend,)
+    permission_classes = [IsAdminOrReadOnly]
     filterset_class = TitlesFilter
     http_method_names = ["get", "post", "patch", "delete"]
 
