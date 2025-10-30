@@ -13,4 +13,3 @@ class ListCreateDeleteViewSet(
     permission_classes = [IsAdminOrReadOnly]
     search_fields = ('name',)
     lookup_field = 'slug'
-    lookup_url_kwarg = 'slug'
