@@ -38,7 +38,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     @property
     def title_object(self):
         "Возвращает объект произведения для текущего запроса."
-        return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+        return get_object_or_404(Titles, pk=self.kwargs.get('title_id'))
 
     def get_queryset(self):
         """Отзывы только к конкретному произведению."""
@@ -65,7 +65,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Комментарии к конкретному отзыву."""
-        return self.review_object.comment.all()
+        return self.review_object.comments.all()
 
     def perform_create(self, serializer):
         """Привязываем автора и отзыв автоматически."""
