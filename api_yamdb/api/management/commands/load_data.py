@@ -15,45 +15,91 @@ class Command(BaseCommand):
     # Конфигурация моделей и их CSV файлов
     MODEL_CONFIG = {
         'category': {
+            'model': Category,
             'filename': 'category.csv',
-            'required_fields': ['name', 'slug'],
-
+            'required_fields': ['id', 'name', 'slug'],
+            'fields': ['id', 'name', 'slug'],
+            'model_fields': {},
             'handler': 'handle_category'
         },
         'genre': {
             'model': Genre,
             'filename': 'genre.csv',
             'required_fields': ['name', 'slug'],
+            'fields': ['id', 'name', 'slug'],
+            'model_fields': {},
             'handler': 'handle_genre'
         },
         'title': {
             'model': Title,
             'filename': 'titles.csv',
             'required_fields': ['name', 'year'],
+            'fields': ['id', 'name', 'year', 'description'],
+            'model_fields': {
+                'category': {
+                    'field': 'category',
+                    'model': Category
+                }
+            },
             'handler': 'handle_titles'
         },
         'genretitles': {
             'model': GenreTitles,
             'filename': 'genre_title.csv',
             'required_fields': ['title_id', 'genre_id'],
+            'fields': ['id'],
+            'model_fields': {
+                'title_id': {
+                    'field': 'title_id',
+                    'model': Title
+                },
+                'genre_id': {
+                    'field': 'genre_id',
+                    'model': Genre
+                }
+            },
             'handler': 'handle_genretitles'
         },
         'user': {
             'model': User,
             'filename': 'users.csv',
             'required_fields': ['username'],
+            'fields': ['id', 'username', 'email', 'password', 'role' ,'confirmation_code', 'bio'],
+            'model_fields': {},
             'handler': 'handle_users'
         },
         'review': {
             'model': Review,
             'filename': 'review.csv',
             'required_fields': ['title_id', 'author', 'text', 'score'],
+            'fields': ['id', 'text', 'score', 'pub_date'],
+            'model_fields': {
+                'title': {
+                    'field': 'title_id',
+                    'model': Title
+                },
+                'author': {
+                    'field': 'author',
+                    'model': User
+                }
+            },
             'handler': 'handle_review'
         },
         'comment': {
             'model': Comment,
             'filename': 'comments.csv',
             'required_fields': ['review_id', 'author', 'text'],
+            'fields': ['id', 'text', 'pub_date'],
+            'model_fields': {
+                'review': {
+                    'field': 'review_id',
+                    'model': Review
+                },
+                'author': {
+                    'field': 'author',
+                    'model': User
+                }
+            },
             'handler': 'handle_comment'
         }
     }
@@ -133,7 +179,9 @@ class Command(BaseCommand):
             success_count = 0
             for row_num, row in enumerate(reader, 1):
                 try:
-                    result = handler_method(row)
+                    data = self.forming_data(row, config['fields'], config['model_fields'])
+                    result = self.get_or_create_csv(config['model'], data)
+                    # result = handler_method(row)
                     if result:
                         success_count += 1
                 except Exception as e:
@@ -186,23 +234,17 @@ class Command(BaseCommand):
         return self.get_or_create_csv(Title, title_data)
 
 
-    def forming_data(self, fields, m, row):
+    def forming_data(self, row, fields, model_fields):
         data = {}
-        for key, value in fields:
-            data[key] = row.get(value,'')
+        for  field in fields:
+            data[field] = row.get(field,'')
+        print(data)
 
-        for key, value_model in m.items():
-            data[key] = value_model['model'].objects.get(pk=value_model['value'])
 
-        f = {
-            'name': 'name',
-        }
-        m = {
-            'category': {
-                'value': 2,
-                'model': Category
-            }
-        }
+        for key, value_model in model_fields.items():
+            data[key] = value_model['model'].objects.get(pk=row[value_model['field']])
+        print(data)
+        return data
 
     def handle_genretitles(self, row):
         title = Title.objects.get(pk=row['title_id'])
