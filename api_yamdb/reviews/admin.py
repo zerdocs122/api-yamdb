@@ -6,6 +6,7 @@ from .models import Category, Genre, Title
 admin.site.empty_value_display = 'Не задано'
 
 
+@admin.register(Title)
 class TitleAdmin(admin.ModelAdmin):
     list_display = (
         'name',
@@ -21,6 +22,7 @@ class TitleAdmin(admin.ModelAdmin):
     list_display_links = ('name',)
 
 
+@admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = (
         'name',
@@ -30,6 +32,7 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display_links = ('name',)
 
 
+@admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
     list_display = (
         'name',
@@ -37,8 +40,3 @@ class GenreAdmin(admin.ModelAdmin):
     )
     search_fields = ('name',)
     list_display_links = ('name',)
-
-
-admin.site.register(Title, TitleAdmin)
-admin.site.register(Category, CategoryAdmin)
-admin.site.register(Genre, GenreAdmin)
