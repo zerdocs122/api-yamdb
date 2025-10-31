@@ -44,11 +44,11 @@ class Title(models.Model):
     year = models.IntegerField('год')
     description = models.TextField('описание', blank=True)
     category = models.ForeignKey(
-        Category, on_delete=models.SET_NULL, verbose_name = 'категория',
+        Category, on_delete=models.SET_NULL, verbose_name='категория',
         related_name='titles', blank=True, null=True
     )
     genre = models.ManyToManyField(
-        Genre, through='GenreTitles', verbose_name = 'жанр'
+        Genre, through='GenreTitles', verbose_name='жанр'
     )
 
     class Meta:

@@ -74,7 +74,7 @@ class CommentViewSet(viewsets.ModelViewSet):
             Review,
             pk=self.kwargs.get('review_id'),
             title_id=self.kwargs.get('title_id')
-            )
+        )
 
     def get_queryset(self):
         """Комментарии к конкретному отзыву."""

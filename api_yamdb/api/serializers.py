@@ -104,7 +104,6 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
             )
         return genres
 
-
     def create(self, validated_data):
         """Создает новое произведение с связанными жанрами."""
         genres = validated_data.pop('genre')
