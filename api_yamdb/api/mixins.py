@@ -9,6 +9,8 @@ class ListCreateDeleteViewSet(
     mixins.ListModelMixin, mixins.CreateModelMixin,
     mixins.DestroyModelMixin, viewsets.GenericViewSet
 ):
+    """ViewSet для операций списка, создания и удаления объектов."""
+
     filter_backends = (filters.SearchFilter,)
     permission_classes = [IsAdminOrReadOnly]
     search_fields = ('name',)
