@@ -1,7 +1,6 @@
 from http import HTTPStatus
 import secrets
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, status, viewsets
