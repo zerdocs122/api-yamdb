@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Genre, Title
+from .models import Category, Genre, Title, Comment, Review
 
 
 admin.site.empty_value_display = 'Не задано'
@@ -40,3 +40,26 @@ class GenreAdmin(admin.ModelAdmin):
     )
     search_fields = ('name',)
     list_display_links = ('name',)
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = (
+        'title',
+        'author',
+        'score',
+        'pub_date',
+    )
+    search_fields = ('title__name',)
+    list_display_links = ('title',)
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = (
+        'review',
+        'author',
+        'pub_date',
+    )
+    search_fields = ('review__title__name',)
+    list_display_links = ('review',)
