@@ -10,38 +10,53 @@ User = get_user_model()
 
 
 class Category(models.Model):
-    """Модель: категории."""
+    """Модель для представления категорий произведений."""
 
-    name = models.CharField(max_length=256)
-    slug = models.SlugField(unique=True, max_length=50)
+    name = models.CharField('название', max_length=256)
+    slug = models.SlugField('слаг', unique=True, max_length=50)
+
+    class Meta:
+        verbose_name = 'категория'
+        verbose_name_plural = 'Категории'
 
     def __str__(self):
         return self.name
 
 
 class Genre(models.Model):
-    """Модель: жанры."""
+    """Модель для представления жанров произведений."""
 
-    name = models.CharField(max_length=256)
-    slug = models.SlugField(unique=True, max_length=50)
+    name = models.CharField('название', max_length=256)
+    slug = models.SlugField('слаг', unique=True, max_length=50)
+
+    class Meta:
+        verbose_name = 'жанр'
+        verbose_name_plural = 'Жанры'
 
     def __str__(self):
         return self.name
 
 
 class Title(models.Model):
-    """Модель: произведения."""
+    """Модель для представления произведений."""
 
-    name = models.CharField(max_length=256)
-    year = models.IntegerField()
-    description = models.TextField(blank=True)
+    name = models.CharField('название', max_length=256)
+    year = models.IntegerField('год')
+    description = models.TextField('описание', blank=True)
     category = models.ForeignKey(
-        Category, on_delete=models.SET_NULL,
+        Category, on_delete=models.SET_NULL, verbose_name = 'категория',
         related_name='titles', blank=True, null=True
     )
-    genre = models.ManyToManyField(Genre, through='GenreTitles')
+    genre = models.ManyToManyField(
+        Genre, through='GenreTitles', verbose_name = 'жанр'
+    )
+
+    class Meta:
+        verbose_name = 'произведение'
+        verbose_name_plural = 'Произведения'
 
     def clean(self):
+        """Проверяет валидность года выпуска произведения."""
         current_year = dt.datetime.now().year
         if self.year > current_year:
             raise ValidationError({
@@ -49,6 +64,7 @@ class Title(models.Model):
             })
 
     def save(self, *args, **kwargs):
+        """Сохраняет объект с предварительной полной валидацией."""
         self.full_clean()
         super().save(*args, **kwargs)
 

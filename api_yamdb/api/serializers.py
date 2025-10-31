@@ -38,7 +38,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """Сериализатор: категории."""
+    """Сериализатор для модели Category."""
 
     class Meta:
         fields = ('name', 'slug')
@@ -46,7 +46,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class GenreSerializer(serializers.ModelSerializer):
-    """Сериализатор: жанры."""
+    """Сериализатор для модели Genre."""
 
     class Meta:
         model = Genre
@@ -55,8 +55,12 @@ class GenreSerializer(serializers.ModelSerializer):
 
 class TitlesWritesSerializer(serializers.ModelSerializer):
     """
-    Сериализатор: произведения, используется для
-    методов POST, PUT, PATCH, DELETE.
+    Сериализатор для записи объектов модели Title.
+
+    Используется для операций создания и обновления
+    произведений (POST, PATCH, DELETE).
+    Обрабатывает связи с жанрами и категориями через
+    список slug'ов.
     """
 
     genre = serializers.ListField(
@@ -73,6 +77,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'year', 'description', 'category', 'genre')
 
     def validate_year(self, value):
+        """Валидация года выпуска произведения."""
         if value > dt.datetime.now().year:
             raise serializers.ValidationError(
                 'Год выпуска не может быть больше текущего.'
@@ -80,6 +85,12 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
         return value
 
     def validate_genre(self, value):
+        """
+        Валидация списка жанров произведения.
+
+        Проверяет, что все переданные slug жанров существуют в базе данных.
+        Возвращает список Genre объектов.
+        """
         genres = []
         not_found_genres = []
         for genre_slug in value:
@@ -95,6 +106,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
+        """Создает новое произведение с связанными жанрами."""
         genres = validated_data.pop('genre')
         title = Title.objects.create(**validated_data)
         for genre in genres:
@@ -103,6 +115,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
         return title
 
     def update(self, instance, validated_data):
+        """Обновляет существующее произведение и его связи с жанрами."""
         instance.name = validated_data.get('name', instance.name)
         instance.year = validated_data.get('year', instance.year)
         instance.description = validated_data.get(
@@ -122,7 +135,11 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
 
 class TitlesReadSerializer(serializers.ModelSerializer):
-    """Сериализатор: произведения, используется для метода GET."""
+    """
+    Сериализатор для чтения объектов модели Title.
+
+    Используется только для операций чтения (GET).
+    """
 
     rating = serializers.SerializerMethodField()
     genre = GenreSerializer(many=True, read_only=True)

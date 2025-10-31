@@ -86,7 +86,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 
 class TitlesViewSet(viewsets.ModelViewSet):
-    """Вьюсет: произведения."""
+    """ViewSet для обработки операций с Title."""
 
     queryset = Title.objects.all().order_by('name')
     filter_backends = (DjangoFilterBackend,)
@@ -95,11 +95,23 @@ class TitlesViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
+        """
+        Определяет класс сериализатора в зависимости от типа HTTP-запроса.
+
+        TitlesWritesSerializer для методов POST, PATCH, DELETE,
+        TitlesReadSerializer для метода GET.
+        """
         if self.request.method not in permissions.SAFE_METHODS:
             return TitlesWritesSerializer
         return TitlesReadSerializer
 
     def create(self, request, *args, **kwargs):
+        """
+        Создает новое произведение.
+
+        Использует TitlesWritesSerializer для валидации и создания,
+        возвращает результат через TitlesReadSerializer.
+        """
         write_serializer = TitlesWritesSerializer(data=request.data)
         write_serializer.is_valid(raise_exception=True)
         instance = write_serializer.save()
@@ -108,6 +120,12 @@ class TitlesViewSet(viewsets.ModelViewSet):
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
+        """
+        Обновляет существующее произведение.
+
+        Использует TitlesWritesSerializer для валидации и обновления,
+        возвращает результат через TitlesReadSerializer.
+        """
         instance = self.get_object()
         write_serializer = TitlesWritesSerializer(
             instance,
@@ -121,7 +139,7 @@ class TitlesViewSet(viewsets.ModelViewSet):
 
 
 class GenreViewSet(ListCreateDeleteViewSet):
-    """Вьюсет: жанры."""
+    """ViewSet для обработки операций с Genre."""
 
     queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
@@ -129,7 +147,7 @@ class GenreViewSet(ListCreateDeleteViewSet):
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
-    """Вьюсет: категории."""
+    """ViewSet для обработки операций с Category."""
 
     queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
