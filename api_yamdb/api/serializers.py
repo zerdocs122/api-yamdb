@@ -194,15 +194,14 @@ class EmailConfirmationSerializer(
                 ).exists()
             ):
                 raise serializers.ValidationError(
-                    'Поля \'username\' и \'email\' должны быть уникальны.'
+                    'Указанный \'email\' принадлежит другому пользователю.'
                 )
             if User.objects.filter(username=attrs['username']).exists() and (
                 User.objects.get(
                     username=attrs['username']).email != attrs['email']
             ):
                 raise serializers.ValidationError(
-                    'Указанный \'email\' не принадлежит существующему '
-                    'пользователю.'
+                    'Указанный \'email\' не принадлежит этому пользователю.'
                 )
         return attrs
 
