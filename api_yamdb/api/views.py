@@ -92,7 +92,7 @@ class TitlesViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = TitlesFilter
-    http_method_names = ["get", "post", "patch", "delete"]
+    http_method_names = ACCEPTABLE_HTTP_METHODS
 
     def get_serializer_class(self):
         """
