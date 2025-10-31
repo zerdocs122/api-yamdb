@@ -37,13 +37,14 @@ User = get_user_model()
 
 class ReviewViewSet(viewsets.ModelViewSet):
     """ViewSet для отзывов."""
+
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthorOrModeratorsOrReadOnly]
     http_method_names = ACCEPTABLE_HTTP_METHODS
 
     @property
     def title_object(self):
-        "Возвращает объект произведения для текущего запроса."
+        """Возвращает объект произведения для текущего запроса."""
         return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
 
     def get_queryset(self):
@@ -61,6 +62,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     """ViewSet для комментариев."""
+
     serializer_class = CommentSerializer
     permission_classes = [IsAuthorOrModeratorsOrReadOnly]
     http_method_names = ACCEPTABLE_HTTP_METHODS
