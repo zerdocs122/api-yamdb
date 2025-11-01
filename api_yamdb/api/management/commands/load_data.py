@@ -2,7 +2,7 @@ import csv
 import os
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from reviews.models import Category, Genre, Title, GenreTitles, Review, Comment
+from reviews.models import Category, Genre, Title, Review, Comment
 from users.models import User
 
 
@@ -27,6 +27,7 @@ class Command(BaseCommand):
             'filename': 'category.csv',
             'required_fields': ['id', 'name', 'slug'],
             'fields': ['id', 'name', 'slug'],
+            'many_to_many_fields': {},
             'model_fields': {},
         },
         'genre': {
@@ -34,6 +35,7 @@ class Command(BaseCommand):
             'filename': 'genre.csv',
             'required_fields': ['id', 'name', 'slug'],
             'fields': ['id', 'name', 'slug'],
+            'many_to_many_fields': {},
             'model_fields': {},
         },
         'title': {
@@ -41,6 +43,7 @@ class Command(BaseCommand):
             'filename': 'titles.csv',
             'required_fields': ['id', 'name', 'year'],
             'fields': ['id', 'name', 'year', 'description'],
+            'many_to_many_fields': {},
             'model_fields': {
                 'category': {
                     'field': 'category',
@@ -49,20 +52,16 @@ class Command(BaseCommand):
             },
         },
         'genretitles': {
-            'model': GenreTitles,
+            'model': Title,
             'filename': 'genre_title.csv',
             'required_fields': ['id', 'title_id', 'genre_id'],
-            'fields': ['id'],
-            'model_fields': {
-                'title_id': {
-                    'field': 'title_id',
-                    'model': Title
-                },
-                'genre_id': {
-                    'field': 'genre_id',
-                    'model': Genre
-                }
+            'fields': [],
+            'many_to_many_fields': {
+                'id': 'title_id',
+                'model_id': 'genre_id',
+                'many_add_field': 'genre'
             },
+            'model_fields': {},
         },
         'user': {
             'model': User,
@@ -70,6 +69,7 @@ class Command(BaseCommand):
             'required_fields': ['id', 'username', 'role'],
             'fields': ['id', 'username', 'email', 'password',
                        'role', 'confirmation_code', 'bio'],
+            'many_to_many_fields': {},
             'model_fields': {},
         },
         'review': {
@@ -77,6 +77,7 @@ class Command(BaseCommand):
             'filename': 'review.csv',
             'required_fields': ['id', 'title_id', 'author', 'text', 'score'],
             'fields': ['id', 'text', 'score', 'pub_date'],
+            'many_to_many_fields': {},
             'model_fields': {
                 'title': {
                     'field': 'title_id',
@@ -93,6 +94,7 @@ class Command(BaseCommand):
             'filename': 'comments.csv',
             'required_fields': ['id', 'review_id', 'author', 'text'],
             'fields': ['id', 'text', 'pub_date'],
+            'many_to_many_fields': {},
             'model_fields': {
                 'review': {
                     'field': 'review_id',
@@ -197,7 +199,7 @@ class Command(BaseCommand):
             for row_num, row in enumerate(reader, 1):
                 try:
                     data = self.forming_data(
-                        row, config['fields'], config['model_fields']
+                        row, config['fields'], config['model_fields'], config['many_to_many_fields']
                     )
                     result = self.get_or_create_for_csv(config['model'], data)
                     if result:
@@ -213,25 +215,42 @@ class Command(BaseCommand):
 
     def get_or_create_for_csv(self, model, data):
         """
-        Создает новую запись в базе данных.
+        Создает новую запись или добавляет связи ManyToMany
+        к существующей записи.
 
-        Создает новую запись в базе данных,
-        если запись с таким ID не существует.
+        Для обычных моделей создает новую запись, если
+        запись с таким ID не существует.
+        Для связей ManyToMany добавляет связь к существующему
+        объекту, если ее еще нет.
 
         Args:
             model: Класс модели Django
-            data (dict): Данные для создания записи
+            data (dict): Данные для создания записи или добавления связи
 
         Returns:
-            bool: True если запись была создана, False если уже существовала
+            bool: True если запись была создана или связь добавлена,
+            False если уже существовала
         """
         try:
-            model.objects.get(pk=data['id'])
+            object = model.objects.get(pk=data['id'])
         except model.DoesNotExist:
             model.objects.create(**data)
             return True
+        else:
+            if 'many_add_field' in data:
+                many_add_field = data['many_add_field']
+                model_id = data['model_id']
+                try:
+                    getattr(object, many_add_field).get(pk=model_id)
+                except Exception:
+                    getattr(object, many_add_field).add(model_id)
+                    return True
 
-    def forming_data(self, row, fields, model_fields):
+
+
+
+
+    def forming_data(self, row, fields, model_fields, many_to_many_fields):
         """
         Форматирует данные из CSV-строки в пригодный для модели формат.
 
@@ -239,6 +258,7 @@ class Command(BaseCommand):
             row (dict): Строка данных из CSV-файла
             fields (list): Список полей для извлечения
             model_fields (dict): Конфигурация связей с другими моделями
+            many_to_many_fields (dict): Конфигурация для обработки связей ManyToMany
 
         Returns:
             dict: Отформатированные данные готовые для сохранения в модель
@@ -247,7 +267,13 @@ class Command(BaseCommand):
             1. Извлекает простые поля
             2. Заменяет ID связанных объектов на реальные экземпляры моделей
         """
+
         data = {}
+        if many_to_many_fields:
+            data['id'] = row.get(many_to_many_fields['id'])
+            data['model_id'] = row.get(many_to_many_fields['model_id'])
+            data['many_add_field'] = many_to_many_fields['many_add_field']
+
         for field in fields:
             data[field] = row.get(field, '')
 
