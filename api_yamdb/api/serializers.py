@@ -269,12 +269,16 @@ class RetriveTokenSerializer(serializers.Serializer):
         fields = ('username', 'confirmation_code')
 
     def validate(self, attrs):
-        """Проверка кода подтверждения.
+        """Валидация пользователя и кода подтверждения.
 
         Очередность проверок:
-        1. Проверяем, добавлен ли пользователь в базу.
-        2. Проверяем получил ли он 'confirmation_code'.
-        3. Проверяем соответвие 'confirmation_code' запрашиваемого
+        1. Пробуем сразу запросить пользователя с указанными данными.
+        В случае успеха возвращаем аттрибуты. Если нет,
+        то продолжаем проверки, чтобы понять, где ошибка.
+        2. Проверяем, добавлен ли пользователь в базу. Если нет, то
+        по условию задания пытаемся вернуть ошибку с кодом 404.
+        3. Проверяем получил ли пользователь 'confirmation_code'.
+        4. Проверяем соответвие 'confirmation_code' запрашиваемого
         пользователя в базе и присланного.
         """
         if User.objects.filter(
@@ -298,7 +302,6 @@ class RetriveTokenSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'confirmation_code': 'Неверный код подтверждения'}
             )
-        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer, CheckUsernameSerializer):
