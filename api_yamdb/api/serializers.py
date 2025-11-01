@@ -2,12 +2,17 @@ import datetime as dt
 
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
 from reviews.models import (
     Category, Comment, Genre, GenreTitles, Review, Title
 )
+from api.constants import (
+    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
+)
+from users.validators import unacceptable_name
 
 
 User = get_user_model()
@@ -165,7 +170,7 @@ class CheckUsernameSerializer(serializers.Serializer):
         Метод проверяет, что переданное значение имени пользователя
         не равно 'me'.
         """
-        if value == 'me':
+        if value in UNACCEPTABLE_USERNAMES:
             raise serializers.ValidationError(
                 'me - недопустимое имя пользователя.'
             )
@@ -178,10 +183,13 @@ class EmailConfirmationSerializer(
 ):
     """Сериализатор для регистрации пользователя через API."""
 
-    email = serializers.EmailField(max_length=254, required=True)
+    email = serializers.EmailField(
+        max_length=MODELS_CONSTANTS['email'],
+        required=True
+    )
     username = serializers.RegexField(
         regex=r'^[\w.@+-]+\Z',
-        max_length=150,
+        max_length=MODELS_CONSTANTS['username'],
         required=True
     )
 
@@ -194,31 +202,38 @@ class EmailConfirmationSerializer(
     def validate(self, attrs):
         """Метод проверки полей username и email.
 
-        В методе проверяется, что:
-        - в запросе существуют обязательные ключи 'username' и 'email';
-        - проверяется, существует ли в базе email, который принадлежит
+        В первую очередь проверям, есть ли пользователь с переданными данными:
+        Если он есть, то возвращаем аттрибуты.
+        Если нет, то проверяем, что данные не содержат повторов в базе:
+        1. проверяется, существует ли в базе email, который принадлежит
         пользователю, отличному от указанного в 'username';
-        - проверяется, существует ли в базе пользователь с указанным 'username'
-        и принадлежит ли ему указанный 'email'.
-        В случае выполнения проверок возвращаются необходимые данные.
+        2. проверяется, существует ли в базе пользователь с указанным
+        'username' и принадлежит ли ему указанный 'email'.
+        В случае успешного выполнения проверок снова возвращаются аттрибуты,
+        значит это новый пользователь.
         """
-        if attrs.get('email') and attrs.get('username'):
-            if (
-                User.objects.filter(email=attrs['email']).exists()
-                and not User.objects.filter(
-                    username=attrs['username']
-                ).exists()
-            ):
-                raise serializers.ValidationError(
-                    'Указанный \'email\' принадлежит другому пользователю.'
-                )
-            if User.objects.filter(username=attrs['username']).exists() and (
-                User.objects.get(
-                    username=attrs['username']).email != attrs['email']
-            ):
-                raise serializers.ValidationError(
-                    'Указанный \'email\' не принадлежит этому пользователю.'
-                )
+        if User.objects.filter(
+            email=attrs['email'],
+            username=attrs['username']
+        ).exists():
+            return attrs
+
+        if (
+            User.objects.filter(email=attrs['email']).exists()
+            and not User.objects.filter(
+                username=attrs['username']
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                'Указанный \'email\' принадлежит другому пользователю.'
+            )
+        if User.objects.filter(username=attrs['username']).exists() and (
+            User.objects.get(
+                username=attrs['username']).email != attrs['email']
+        ):
+            raise serializers.ValidationError(
+                'Указанный \'email\' не принадлежит этому пользователю.'
+            )
         return attrs
 
     def create(self, validated_data):
@@ -228,10 +243,7 @@ class EmailConfirmationSerializer(
         если пользователся еще нет в базе, то пользователь сохраняется с
         полями 'username' и 'email'.
         """
-        try:
-            user = User.objects.get(username=validated_data['username'])
-        except User.DoesNotExist:
-            user = User.objects.create_user(**validated_data)
+        user, _ = User.objects.get_or_create(**validated_data)
         return user
 
 
@@ -243,10 +255,51 @@ class RetriveTokenSerializer(serializers.Serializer):
 
     username = serializers.RegexField(
         regex=r'^[\w.@+-]+\Z',
-        max_length=150,
+        max_length=MODELS_CONSTANTS['username'],
         required=True
     )
-    confirmation_code = serializers.CharField(max_length=50, required=True)
+    confirmation_code = serializers.CharField(
+        max_length=MODELS_CONSTANTS['reg_code'],
+        required=True
+    )
+
+    class Meta:
+        """Meta-класс сериализатора."""
+
+        model = User
+        fields = ('username', 'confirmation_code')
+
+    def validate(self, attrs):
+        """Проверка кода подтверждения.
+
+        Очередность проверок:
+        1. Проверяем, добавлен ли пользователь в базу.
+        2. Проверяем получил ли он 'confirmation_code'.
+        3. Проверяем соответвие 'confirmation_code' запрашиваемого
+        пользователя в базе и присланного.
+        """
+        if User.objects.filter(
+            username=attrs['username'],
+            confirmation_code=attrs['confirmation_code']
+        ).exists():
+            return attrs
+
+        if not User.objects.filter(
+            username=attrs['username']
+        ).exists():
+            raise serializers.ValidationError(USER_NOTFOUND)
+        user = User.objects.get(username=attrs['username'])
+        if not user.confirmation_code:
+            raise serializers.ValidationError(
+                'Пользователь с таким \'username\' еще не запрашивал код '
+                'подтверждения. Получить код подтверждения можно через '
+                'эндпоинт: /auth/signup/.'
+            )
+        if user.confirmation_code != attrs['confirmation_code']:
+            raise serializers.ValidationError(
+                {'confirmation_code': 'Неверный код подтверждения'}
+            )
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer, CheckUsernameSerializer):
