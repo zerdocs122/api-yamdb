@@ -199,7 +199,10 @@ class Command(BaseCommand):
             for row_num, row in enumerate(reader, 1):
                 try:
                     data = self.forming_data(
-                        row, config['fields'], config['model_fields'], config['many_to_many_fields']
+                        row,
+                        config['fields'],
+                        config['model_fields'],
+                        config['many_to_many_fields']
                     )
                     result = self.get_or_create_for_csv(config['model'], data)
                     if result:
@@ -246,10 +249,6 @@ class Command(BaseCommand):
                     getattr(object, many_add_field).add(model_id)
                     return True
 
-
-
-
-
     def forming_data(self, row, fields, model_fields, many_to_many_fields):
         """
         Форматирует данные из CSV-строки в пригодный для модели формат.
@@ -258,7 +257,8 @@ class Command(BaseCommand):
             row (dict): Строка данных из CSV-файла
             fields (list): Список полей для извлечения
             model_fields (dict): Конфигурация связей с другими моделями
-            many_to_many_fields (dict): Конфигурация для обработки связей ManyToMany
+            many_to_many_fields (dict): Конфигурация для обработки
+            связей ManyToMany
 
         Returns:
             dict: Отформатированные данные готовые для сохранения в модель
