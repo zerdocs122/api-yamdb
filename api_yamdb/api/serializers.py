@@ -1,6 +1,7 @@
 import datetime as dt
 
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django.db.models import Avg
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
@@ -255,53 +256,31 @@ class RetriveTokenSerializer(serializers.Serializer):
     username = serializers.RegexField(
         regex=r'^[\w.@+-]+\Z',
         max_length=MODELS_CONSTANTS['username'],
-        required=True
+        required=True,
     )
     confirmation_code = serializers.CharField(
         max_length=MODELS_CONSTANTS['reg_code'],
         required=True
     )
 
-    class Meta:
-        """Meta-класс сериализатора."""
-
-        model = User
-        fields = ('username', 'confirmation_code')
-
     def validate(self, attrs):
         """Валидация пользователя и кода подтверждения.
 
         Очередность проверок:
-        1. Пробуем сразу запросить пользователя с указанными данными.
-        В случае успеха возвращаем аттрибуты. Если нет,
-        то продолжаем проверки, чтобы понять, где ошибка.
-        2. Проверяем, добавлен ли пользователь в базу. Если нет, то
-        по условию задания пытаемся вернуть ошибку с кодом 404.
-        3. Проверяем получил ли пользователь 'confirmation_code'.
-        4. Проверяем соответвие 'confirmation_code' запрашиваемого
+        1. Проверяем, есть ли пользователь в базе. Если нет, то
+        по условию задания возвращаем данные для ошибки с кодом 404.
+        2. Проверяем соответвие 'confirmation_code' запрашиваемого
         пользователя в базе и присланного.
         """
-        if User.objects.filter(
-            username=attrs['username'],
-            confirmation_code=attrs['confirmation_code']
-        ).exists():
-            return attrs
-
-        if not User.objects.filter(
-            username=attrs['username']
-        ).exists():
+        try:
+            user = get_object_or_404(User, username=attrs['username'])
+        except Exception:
             raise serializers.ValidationError(USER_NOTFOUND)
-        user = User.objects.get(username=attrs['username'])
-        if not user.confirmation_code:
-            raise serializers.ValidationError(
-                'Пользователь с таким \'username\' еще не запрашивал код '
-                'подтверждения. Получить код подтверждения можно через '
-                'эндпоинт: /auth/signup/.'
-            )
         if user.confirmation_code != attrs['confirmation_code']:
             raise serializers.ValidationError(
                 {'confirmation_code': 'Неверный код подтверждения'}
             )
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer, CheckUsernameSerializer):

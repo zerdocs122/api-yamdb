@@ -194,9 +194,11 @@ def token_get_view(request):
     try:
         serializer.is_valid(raise_exception=True)
     except Exception:
-        if 'username' in serializer.errors:
-            if serializer.errors['username'][0] == USER_NOTFOUND['username']:
-                return Response(serializer.errors, status=HTTPStatus.NOT_FOUND)
+        if (
+            'username' in serializer.errors
+            and serializer.errors['username'][0] == USER_NOTFOUND['username']
+        ):
+            return Response(serializer.errors, status=HTTPStatus.NOT_FOUND)
         return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
     user = User.objects.get(username=serializer.validated_data['username'])
     token = RefreshToken.for_user(user)
