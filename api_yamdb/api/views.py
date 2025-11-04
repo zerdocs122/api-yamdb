@@ -1,18 +1,18 @@
 from http import HTTPStatus
 import secrets
 
+from django.db.models import Avg
+from django.db.models.functions import Round
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import filters, permissions, status, viewsets
+from rest_framework import filters, permissions, viewsets, mixins
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .constants import ACCEPTABLE_HTTP_METHODS
-from .mixins import ListCreateDeleteViewSet
+from .constants import ACCEPTABLE_HTTP_METHODS, USER_NOTFOUND
 from .permissions import (
     IsAdmin, IsAdminOrReadOnly, IsAuthorOrModeratorsOrReadOnly
 )
@@ -53,10 +53,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Привязываем автора и произведение автоматически."""
-        if self.get_queryset().filter(author=self.request.user).exists():
-            raise ValidationError(
-                {'detail': 'Вы уже оставляли отзыв на это произведение'}
-            )
         serializer.save(author=self.request.user, title=self.title_object)
 
 
@@ -94,6 +90,15 @@ class TitlesViewSet(viewsets.ModelViewSet):
     filterset_class = TitlesFilter
     http_method_names = ACCEPTABLE_HTTP_METHODS
 
+    def get_queryset(self):
+        """Вычисляем рейтинг для каждого произведения."""
+        queryset = self.queryset
+        if self.request.method in permissions.SAFE_METHODS:
+            queryset = queryset.annotate(
+                rating=Round(Avg('reviews__score'))
+            )
+        return queryset
+
     def get_serializer_class(self):
         """
         Определяет класс сериализатора в зависимости от типа HTTP-запроса.
@@ -105,37 +110,17 @@ class TitlesViewSet(viewsets.ModelViewSet):
             return TitlesWritesSerializer
         return TitlesReadSerializer
 
-    def create(self, request, *args, **kwargs):
-        """
-        Создает новое произведение.
 
-        Использует TitlesWritesSerializer для валидации и создания,
-        возвращает результат через TitlesReadSerializer.
-        """
-        write_serializer = TitlesWritesSerializer(data=request.data)
-        write_serializer.is_valid(raise_exception=True)
-        instance = write_serializer.save()
+class ListCreateDeleteViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin,
+    mixins.DestroyModelMixin, viewsets.GenericViewSet
+):
+    """ViewSet для операций списка, создания и удаления объектов."""
 
-        read_serializer = TitlesReadSerializer(instance)
-        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        """
-        Обновляет существующее произведение.
-
-        Использует TitlesWritesSerializer для валидации и обновления,
-        возвращает результат через TitlesReadSerializer.
-        """
-        instance = self.get_object()
-        write_serializer = TitlesWritesSerializer(
-            instance,
-            data=request.data,
-            partial=True
-        )
-        write_serializer.is_valid(raise_exception=True)
-        instance = write_serializer.save()
-        read_serializer = TitlesReadSerializer(instance)
-        return Response(read_serializer.data)
+    filter_backends = (filters.SearchFilter,)
+    permission_classes = [IsAdminOrReadOnly]
+    search_fields = ('name',)
+    lookup_field = 'slug'
 
 
 class GenreViewSet(ListCreateDeleteViewSet):
@@ -143,7 +128,6 @@ class GenreViewSet(ListCreateDeleteViewSet):
 
     queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
-    permission_classes = [IsAdminOrReadOnly]
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
@@ -151,7 +135,6 @@ class CategoryViewSet(ListCreateDeleteViewSet):
 
     queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
 
 
 @api_view(['POST'])
@@ -188,30 +171,23 @@ def token_get_view(request):
     """Функция получения JWT-токена по запросу.
 
     Принимает на вход обязательные поля 'username' и 'confirmation_code'.
-    Проверяет наличие в базе юзера, который запрашивает токен, проверяет
-    соответвие 'confirmation_code' в базе и присланного.
-    В результате выдает JWT-токен доступа.
+    В случае успешной проверки возвращает JWT-токен доступа.
     """
     serializer = RetriveTokenSerializer(data=request.data)
     try:
         serializer.is_valid(raise_exception=True)
     except Exception:
+        if (
+            'username' in serializer.errors
+            and serializer.errors['username'][0] == USER_NOTFOUND['username']
+        ):
+            return Response(serializer.errors, status=HTTPStatus.NOT_FOUND)
         return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
-    username = serializer.validated_data.get('username')
-    confirmation_code = serializer.validated_data.get('confirmation_code')
-    user = get_object_or_404(User, username=username)
-
-    if confirmation_code == user.confirmation_code:
-        token = RefreshToken.for_user(user)
-
-        return Response(
-            {'token': f'{token.access_token}'},
-            status=HTTPStatus.OK
-        )
-
+    user = User.objects.get(username=serializer.validated_data['username'])
+    token = RefreshToken.for_user(user)
     return Response(
-        {'confirmation_code': 'Неверный код подтверждения'},
-        status=HTTPStatus.BAD_REQUEST,
+        {'token': f'{token.access_token}'},
+        status=HTTPStatus.OK
     )
 
 
@@ -248,12 +224,12 @@ class UserViewSet(viewsets.ModelViewSet):
         """Функция обработки запросов через эндпоинт /users/me/."""
         if request.method == 'GET':
             serializer = self.serializer_class(request.user)
-            return Response(serializer.data, status=HTTPStatus.OK)
+            return Response(serializer.data)
         serializer = self.serializer_class(
             request.user,
             data=request.data,
             partial=True
         )
         serializer.is_valid(raise_exception=True)
-        serializer.update(request.user, serializer.validated_data)
-        return Response(serializer.data, status=HTTPStatus.OK)
+        serializer.save()
+        return Response(serializer.data)

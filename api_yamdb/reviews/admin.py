@@ -13,13 +13,20 @@ class TitleAdmin(admin.ModelAdmin):
         'description',
         'year',
         'category',
+        'get_genre'
     )
     list_editable = (
         'category',
     )
+    autocomplete_fields = ('genre',)
     search_fields = ('name',)
     list_filter = ('category', 'genre')
     list_display_links = ('name',)
+
+    def get_genre(self, instance):
+        return [genre.name for genre in instance.genre.all()]
+
+    get_genre.short_description = 'Жанр'
 
 
 @admin.register(Category)
