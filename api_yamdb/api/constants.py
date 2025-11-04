@@ -1,3 +1,4 @@
+"""Константы приложения API."""
 from api.utils import get_role_length
 
 API_VERSION = 'v1'
