@@ -12,7 +12,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .constants import ACCEPTABLE_HTTP_METHODS, USER_NOTFOUND
-from .mixins import ListCreateDeleteViewSet
 from .permissions import (
     IsAdmin, IsAdminOrReadOnly, IsAuthorOrModeratorsOrReadOnly
 )
