@@ -1,11 +1,15 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Avg
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
 from reviews.models import (
     Category, Comment, Genre, Review, Title
 )
+from api.constants import (
+    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
+)
+from users.validators import unacceptable_name
 from reviews.validators import validate_year
 
 
@@ -13,7 +17,7 @@ User = get_user_model()
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    """Сериализатор для отзывов."""
+    """Сериализатор для модели Review."""
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
@@ -23,9 +27,33 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'text', 'author', 'score', 'pub_date')
         read_only_fields = ('title', 'author')
 
+    def validate_score(self, value):
+        """Валидация оценки произведения."""
+
+        if not 1 <= value <= 10:
+            raise serializers.ValidationError(
+                'Оценка должна быть целым числом от 1 до 10'
+            )
+        return value
+
+    def validate(self, data):
+        """Валидация на повторную рецензию."""
+
+        if self.context['request'].method != 'POST':
+            return data
+
+        title = self.context['view'].title_object
+        user = self.context['request'].user
+
+        if Review.objects.filter(title=title, author=user).exists():
+            raise serializers.ValidationError(
+                'Вы уже оставляли отзыв на это произведение'
+            )
+        return data
+
 
 class CommentSerializer(serializers.ModelSerializer):
-    """Сериализатор для комментариев."""
+    """Сериализатор для модели Comment."""
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
@@ -89,7 +117,7 @@ class TitlesReadSerializer(serializers.ModelSerializer):
     Используется только для операций чтения GET.
     """
 
-    rating = serializers.SerializerMethodField()
+    rating = serializers.IntegerField(read_only=True)
     genre = GenreSerializer(many=True, read_only=True)
     category = CategorySerializer(read_only=True)
 
@@ -98,11 +126,6 @@ class TitlesReadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'year', 'description', 'category', 'genre', 'rating'
         ]
-
-    def get_rating(self, obj):
-        """Вычисляем средний рейтинг на основе всех отзывов."""
-        avg_score = obj.reviews.aggregate(Avg('score'))['score__avg']
-        return round(avg_score) if avg_score is not None else None
 
 
 class CheckUsernameSerializer(serializers.Serializer):
@@ -114,7 +137,7 @@ class CheckUsernameSerializer(serializers.Serializer):
         Метод проверяет, что переданное значение имени пользователя
         не равно 'me'.
         """
-        if value == 'me':
+        if value in UNACCEPTABLE_USERNAMES:
             raise serializers.ValidationError(
                 'me - недопустимое имя пользователя.'
             )
@@ -127,10 +150,13 @@ class EmailConfirmationSerializer(
 ):
     """Сериализатор для регистрации пользователя через API."""
 
-    email = serializers.EmailField(max_length=254, required=True)
+    email = serializers.EmailField(
+        max_length=MODELS_CONSTANTS['email'],
+        required=True
+    )
     username = serializers.RegexField(
         regex=r'^[\w.@+-]+\Z',
-        max_length=150,
+        max_length=MODELS_CONSTANTS['username'],
         required=True
     )
 
@@ -143,31 +169,38 @@ class EmailConfirmationSerializer(
     def validate(self, attrs):
         """Метод проверки полей username и email.
 
-        В методе проверяется, что:
-        - в запросе существуют обязательные ключи 'username' и 'email';
-        - проверяется, существует ли в базе email, который принадлежит
+        В первую очередь проверям, есть ли пользователь с переданными данными:
+        Если он есть, то возвращаем аттрибуты.
+        Если нет, то проверяем, что данные не содержат повторов в базе:
+        1. проверяется, существует ли в базе email, который принадлежит
         пользователю, отличному от указанного в 'username';
-        - проверяется, существует ли в базе пользователь с указанным 'username'
-        и принадлежит ли ему указанный 'email'.
-        В случае выполнения проверок возвращаются необходимые данные.
+        2. проверяется, существует ли в базе пользователь с указанным
+        'username' и принадлежит ли ему указанный 'email'.
+        В случае успешного выполнения проверок снова возвращаются аттрибуты,
+        значит это новый пользователь.
         """
-        if attrs.get('email') and attrs.get('username'):
-            if (
-                User.objects.filter(email=attrs['email']).exists()
-                and not User.objects.filter(
-                    username=attrs['username']
-                ).exists()
-            ):
-                raise serializers.ValidationError(
-                    'Указанный \'email\' принадлежит другому пользователю.'
-                )
-            if User.objects.filter(username=attrs['username']).exists() and (
-                User.objects.get(
-                    username=attrs['username']).email != attrs['email']
-            ):
-                raise serializers.ValidationError(
-                    'Указанный \'email\' не принадлежит этому пользователю.'
-                )
+        if User.objects.filter(
+            email=attrs['email'],
+            username=attrs['username']
+        ).exists():
+            return attrs
+
+        if (
+            User.objects.filter(email=attrs['email']).exists()
+            and not User.objects.filter(
+                username=attrs['username']
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                'Указанный \'email\' принадлежит другому пользователю.'
+            )
+        if User.objects.filter(username=attrs['username']).exists() and (
+            User.objects.get(
+                username=attrs['username']).email != attrs['email']
+        ):
+            raise serializers.ValidationError(
+                'Указанный \'email\' не принадлежит этому пользователю.'
+            )
         return attrs
 
     def create(self, validated_data):
@@ -177,10 +210,7 @@ class EmailConfirmationSerializer(
         если пользователся еще нет в базе, то пользователь сохраняется с
         полями 'username' и 'email'.
         """
-        try:
-            user = User.objects.get(username=validated_data['username'])
-        except User.DoesNotExist:
-            user = User.objects.create_user(**validated_data)
+        user, _ = User.objects.get_or_create(**validated_data)
         return user
 
 
@@ -192,10 +222,32 @@ class RetriveTokenSerializer(serializers.Serializer):
 
     username = serializers.RegexField(
         regex=r'^[\w.@+-]+\Z',
-        max_length=150,
+        max_length=MODELS_CONSTANTS['username'],
+        required=True,
+    )
+    confirmation_code = serializers.CharField(
+        max_length=MODELS_CONSTANTS['reg_code'],
         required=True
     )
-    confirmation_code = serializers.CharField(max_length=50, required=True)
+
+    def validate(self, attrs):
+        """Валидация пользователя и кода подтверждения.
+
+        Очередность проверок:
+        1. Проверяем, есть ли пользователь в базе. Если нет, то
+        по условию задания возвращаем данные для ошибки с кодом 404.
+        2. Проверяем соответвие 'confirmation_code' запрашиваемого
+        пользователя в базе и присланного.
+        """
+        try:
+            user = get_object_or_404(User, username=attrs['username'])
+        except Exception:
+            raise serializers.ValidationError(USER_NOTFOUND)
+        if user.confirmation_code != attrs['confirmation_code']:
+            raise serializers.ValidationError(
+                {'confirmation_code': 'Неверный код подтверждения'}
+            )
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer, CheckUsernameSerializer):

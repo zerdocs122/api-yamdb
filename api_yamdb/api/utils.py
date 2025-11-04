@@ -20,3 +20,13 @@ def send_confirmation_to_email(user, confirmation_code):
         headers={'Content-Type': 'text/plain; charset=UTF-8'}
     )
     email.send()
+
+
+def get_role_length(roles: list[tuple]) -> int:
+    """Определение максимальной длины поля role модели Users.
+
+    Принимает на вход список кортежей ('role', 'description').
+    'role', 'description' - текстовые поля.
+    Возвращает максимальную длину среди всех полей 'role'.
+    """
+    return max(len(role) for role, _ in roles)

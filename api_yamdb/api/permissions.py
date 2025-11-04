@@ -6,21 +6,18 @@ class IsAdmin(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Проверка GET метода и аутентифицированного пользователя."""
-        return (
-            request.user.is_authenticated
-            and (request.user.role == 'admin' or request.user.is_superuser)
-        )
+        if request.user.is_authenticated:
+            return request.user.is_admin
 
 
-class IsAdminOrReadOnly(permissions.BasePermission):
+class IsAdminOrReadOnly(IsAdmin):
     """Проверка прав доступа для администратора или только чтение."""
 
     def has_permission(self, request, view):
         """Условия на доступ к списку объектов."""
         return (
             request.method in permissions.SAFE_METHODS
-            or request.user.is_authenticated
-            and (request.user.role == 'admin' or request.user.is_superuser)
+            or super().has_permission(request, view)
         )
 
 
@@ -40,5 +37,5 @@ class IsAuthorOrModeratorsOrReadOnly(permissions.BasePermission):
             request.method in permissions.SAFE_METHODS
             or request.user.is_authenticated
             and obj.author == request.user
-            or (request.user.role != 'user' or request.user.is_superuser)
+            or (request.user.is_admin or request.user.is_moderator)
         )
