@@ -3,7 +3,7 @@ import secrets
 
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import filters, permissions, status, viewsets
+from rest_framework import filters, permissions, viewsets, mixins
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -105,37 +105,17 @@ class TitlesViewSet(viewsets.ModelViewSet):
             return TitlesWritesSerializer
         return TitlesReadSerializer
 
-    def create(self, request, *args, **kwargs):
-        """
-        Создает новое произведение.
 
-        Использует TitlesWritesSerializer для валидации и создания,
-        возвращает результат через TitlesReadSerializer.
-        """
-        write_serializer = TitlesWritesSerializer(data=request.data)
-        write_serializer.is_valid(raise_exception=True)
-        instance = write_serializer.save()
+class ListCreateDeleteViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin,
+    mixins.DestroyModelMixin, viewsets.GenericViewSet
+):
+    """ViewSet для операций списка, создания и удаления объектов."""
 
-        read_serializer = TitlesReadSerializer(instance)
-        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        """
-        Обновляет существующее произведение.
-
-        Использует TitlesWritesSerializer для валидации и обновления,
-        возвращает результат через TitlesReadSerializer.
-        """
-        instance = self.get_object()
-        write_serializer = TitlesWritesSerializer(
-            instance,
-            data=request.data,
-            partial=True
-        )
-        write_serializer.is_valid(raise_exception=True)
-        instance = write_serializer.save()
-        read_serializer = TitlesReadSerializer(instance)
-        return Response(read_serializer.data)
+    filter_backends = (filters.SearchFilter,)
+    permission_classes = [IsAdminOrReadOnly]
+    search_fields = ('name',)
+    lookup_field = 'slug'
 
 
 class GenreViewSet(ListCreateDeleteViewSet):
@@ -143,7 +123,6 @@ class GenreViewSet(ListCreateDeleteViewSet):
 
     queryset = Genre.objects.all().order_by('name')
     serializer_class = GenreSerializer
-    permission_classes = [IsAdminOrReadOnly]
 
 
 class CategoryViewSet(ListCreateDeleteViewSet):
@@ -151,7 +130,6 @@ class CategoryViewSet(ListCreateDeleteViewSet):
 
     queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
 
 
 @api_view(['POST'])

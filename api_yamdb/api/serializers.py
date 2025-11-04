@@ -1,5 +1,3 @@
-import datetime as dt
-
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.db.models import Avg
@@ -7,12 +5,13 @@ from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
 from reviews.models import (
-    Category, Comment, Genre, GenreTitles, Review, Title
+    Category, Comment, Genre, Review, Title
 )
 from api.constants import (
     MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
 )
 from users.validators import unacceptable_name
+from reviews.validators import validate_year
 
 
 User = get_user_model()
@@ -46,8 +45,8 @@ class CategorySerializer(serializers.ModelSerializer):
     """Сериализатор для модели Category."""
 
     class Meta:
-        fields = ('name', 'slug')
         model = Category
+        exclude = ('id',)
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -55,94 +54,44 @@ class GenreSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Genre
-        fields = ('name', 'slug')
+        exclude = ('id',)
 
 
 class TitlesWritesSerializer(serializers.ModelSerializer):
     """
-    Сериализатор для записи объектов модели Title.
+    Сериализатор для операций записи POST, PUT, PATCH объектов модели Title.
 
-    Используется для операций создания и обновления
-    произведений (POST, PATCH, DELETE).
-    Обрабатывает связи с жанрами и категориями через
-    список slug'ов.
+    Используется для создания и обновления произведений. Принимает slug'и
+    для связей с жанрами и категориями, но возвращает полные объекты в ответе.
     """
 
-    genre = serializers.ListField(
-        child=serializers.CharField(),
-        write_only=True
+    genre = SlugRelatedField(
+        slug_field='slug', queryset=Genre.objects.all(), many=True
     )
     description = serializers.CharField(required=False)
     category = SlugRelatedField(
         slug_field='slug', queryset=Category.objects.all()
     )
+    year = serializers.IntegerField(validators=[validate_year])
 
     class Meta:
         model = Title
         fields = ('id', 'name', 'year', 'description', 'category', 'genre')
 
-    def validate_year(self, value):
-        """Валидация года выпуска произведения."""
-        if value > dt.datetime.now().year:
-            raise serializers.ValidationError(
-                'Год выпуска не может быть больше текущего.'
-            )
-        return value
-
-    def validate_genre(self, value):
-        """
-        Валидация списка жанров произведения.
-
-        Проверяет, что все переданные slug жанров существуют в базе данных.
-        Возвращает список Genre объектов.
-        """
-        genres = []
-        not_found_genres = []
-        for genre_slug in value:
-            try:
-                genres.append(Genre.objects.get(slug=genre_slug))
-            except Genre.DoesNotExist:
-                not_found_genres.append(genre_slug)
-        if not_found_genres:
-            raise serializers.ValidationError(
-                f'Жанры {not_found_genres} не существуют'
-            )
-        return genres
-
-    def create(self, validated_data):
-        """Создает новое произведение с связанными жанрами."""
-        genres = validated_data.pop('genre')
-        title = Title.objects.create(**validated_data)
-        for genre in genres:
-            current_genre = genre
-            GenreTitles.objects.create(genre_id=current_genre, title_id=title)
-        return title
-
-    def update(self, instance, validated_data):
-        """Обновляет существующее произведение и его связи с жанрами."""
-        instance.name = validated_data.get('name', instance.name)
-        instance.year = validated_data.get('year', instance.year)
-        instance.description = validated_data.get(
-            'description', instance.description
-        )
-        instance.category = validated_data.get('category', instance.category)
-        if 'genre' in validated_data:
-            genre_slugs = validated_data.pop('genre')
-            lst = []
-            for genre_slug in genre_slugs:
-                current_genre = Genre.objects.get(slug=genre_slug)
-                lst.append(current_genre)
-            instance.genre.set(lst)
-
-        instance.save()
-        return instance
+    def to_representation(self, instance):
+        """Преобразует внутреннее представление данных в формат для ответа."""
+        return_data = super().to_representation(instance)
+        return_data['category'] = CategorySerializer(instance.category).data
+        return_data['genre'] = GenreSerializer(
+            instance.genre.all(), many=True).data
+        return return_data
 
 
 class TitlesReadSerializer(serializers.ModelSerializer):
     """
     Сериализатор для чтения объектов модели Title.
 
-    Используется только для операций чтения (GET).
+    Используется только для операций чтения GET.
     """
 
     rating = serializers.SerializerMethodField()

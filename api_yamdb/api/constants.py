@@ -13,6 +13,8 @@ MODELS_CONSTANTS = {
     "username": 150,
     "email": 254,
     "role": get_role_length(ROLES),
-    "reg_code": 50
+    "reg_code": 50,
+    'name': 256,
+    'slug': 50
 }
 USER_NOTFOUND = {'username': 'Пользователь не найден.'}
