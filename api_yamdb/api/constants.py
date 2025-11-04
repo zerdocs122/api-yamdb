@@ -5,10 +5,10 @@ API_VERSION = 'v1'
 ACCEPTABLE_HTTP_METHODS = ['get', 'post', 'patch', 'delete']
 UNACCEPTABLE_USERNAMES = ['me']
 ROLES = [
-        ('user', 'Аутентифицированный пользователь'),
-        ('moderator', 'Модератор'),
-        ('admin', 'Администратор'),
-    ]
+    ('user', 'Аутентифицированный пользователь'),
+    ('moderator', 'Модератор'),
+    ('admin', 'Администратор'),
+]
 MODELS_CONSTANTS = {
     "password": 128,
     "username": 150,

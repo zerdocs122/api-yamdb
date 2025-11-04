@@ -9,7 +9,6 @@ from reviews.models import (
 from api.constants import (
     MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
 )
-from users.validators import unacceptable_name
 from reviews.validators import validate_year
 
 
@@ -139,7 +138,7 @@ class CheckUsernameSerializer(serializers.Serializer):
         """
         if value in UNACCEPTABLE_USERNAMES:
             raise serializers.ValidationError(
-                'me - недопустимое имя пользователя.'
+                '{value} - недопустимое имя пользователя.'
             )
         return value
 
