@@ -1,13 +1,14 @@
 from http import HTTPStatus
 import secrets
 
+from django.db.models import Avg
+from django.db.models.functions import Round
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, viewsets, mixins
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -52,10 +53,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Привязываем автора и произведение автоматически."""
-        if self.get_queryset().filter(author=self.request.user).exists():
-            raise ValidationError(
-                {'detail': 'Вы уже оставляли отзыв на это произведение'}
-            )
         serializer.save(author=self.request.user, title=self.title_object)
 
 
@@ -92,6 +89,15 @@ class TitlesViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = TitlesFilter
     http_method_names = ACCEPTABLE_HTTP_METHODS
+
+    def get_queryset(self):
+        """Вычисляем рейтинг для каждого произведения."""
+        queryset = self.queryset
+        if self.request.method in permissions.SAFE_METHODS:
+            queryset = queryset.annotate(
+                rating=Round(Avg('reviews__score'))
+            )
+        return queryset
 
     def get_serializer_class(self):
         """

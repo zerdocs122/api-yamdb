@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from django.db.models import Avg
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
@@ -18,7 +17,7 @@ User = get_user_model()
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    """Сериализатор для отзывов."""
+    """Сериализатор для модели Review."""
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
@@ -28,9 +27,33 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'text', 'author', 'score', 'pub_date')
         read_only_fields = ('title', 'author')
 
+    def validate_score(self, value):
+        """Валидация оценки произведения."""
+
+        if not 1 <= value <= 10:
+            raise serializers.ValidationError(
+                'Оценка должна быть целым числом от 1 до 10'
+            )
+        return value
+
+    def validate(self, data):
+        """Валидация на повторную рецензию."""
+
+        if self.context['request'].method != 'POST':
+            return data
+
+        title = self.context['view'].title_object
+        user = self.context['request'].user
+
+        if Review.objects.filter(title=title, author=user).exists():
+            raise serializers.ValidationError(
+                'Вы уже оставляли отзыв на это произведение'
+            )
+        return data
+
 
 class CommentSerializer(serializers.ModelSerializer):
-    """Сериализатор для комментариев."""
+    """Сериализатор для модели Comment."""
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
@@ -94,7 +117,7 @@ class TitlesReadSerializer(serializers.ModelSerializer):
     Используется только для операций чтения GET.
     """
 
-    rating = serializers.SerializerMethodField()
+    rating = serializers.IntegerField(read_only=True)
     genre = GenreSerializer(many=True, read_only=True)
     category = CategorySerializer(read_only=True)
 
@@ -103,11 +126,6 @@ class TitlesReadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'year', 'description', 'category', 'genre', 'rating'
         ]
-
-    def get_rating(self, obj):
-        """Вычисляем средний рейтинг на основе всех отзывов."""
-        avg_score = obj.reviews.aggregate(Avg('score'))['score__avg']
-        return round(avg_score) if avg_score is not None else None
 
 
 class CheckUsernameSerializer(serializers.Serializer):

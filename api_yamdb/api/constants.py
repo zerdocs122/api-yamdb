@@ -15,6 +15,8 @@ MODELS_CONSTANTS = {
     "role": get_role_length(ROLES),
     "reg_code": 50,
     'name': 256,
-    'slug': 50
+    'slug': 50,
+    'score_min': 1,
+    'score_max': 10
 }
 USER_NOTFOUND = {'username': 'Пользователь не найден.'}
