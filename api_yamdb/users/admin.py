@@ -22,9 +22,9 @@ class UserAdmin(BaseUserAdmin):
     @admin.display(description='Отзывов оставлено')
     def number_of_reviews(self, obj):
         """Подсчет оставленных отзывов пользователем."""
-        return obj.review_set.count()
+        return obj.review.count()
 
     @admin.display(description='Комментариев оставлено')
     def number_of_comments(self, obj):
         """Подсчет оставленных комментариев пользователем."""
-        return obj.comment_set.count()
+        return obj.comment.count()
