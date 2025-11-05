@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
@@ -7,7 +6,7 @@ from reviews.models import (
     Category, Comment, Genre, Review, Title
 )
 from api.constants import (
-    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
+    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES
 )
 from reviews.validators import validate_year
 
@@ -20,20 +19,15 @@ class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
+    score = serializers.IntegerField(
+        min_value=MODELS_CONSTANTS['score_min'],
+        max_value=MODELS_CONSTANTS['score_max'],
+    )
 
     class Meta:
         model = Review
         fields = ('id', 'title', 'text', 'author', 'score', 'pub_date')
         read_only_fields = ('title', 'author')
-
-    def validate_score(self, value):
-        """Валидация оценки произведения."""
-
-        if not 1 <= value <= 10:
-            raise serializers.ValidationError(
-                'Оценка должна быть целым числом от 1 до 10'
-            )
-        return value
 
     def validate(self, data):
         """Валидация на повторную рецензию."""
@@ -102,11 +96,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """Преобразует внутреннее представление данных в формат для ответа."""
-        return_data = super().to_representation(instance)
-        return_data['category'] = CategorySerializer(instance.category).data
-        return_data['genre'] = GenreSerializer(
-            instance.genre.all(), many=True).data
-        return return_data
+        return TitlesReadSerializer(instance).data
 
 
 class TitlesReadSerializer(serializers.ModelSerializer):
@@ -233,15 +223,12 @@ class RetriveTokenSerializer(serializers.Serializer):
         """Валидация пользователя и кода подтверждения.
 
         Очередность проверок:
-        1. Проверяем, есть ли пользователь в базе. Если нет, то
-        по условию задания возвращаем данные для ошибки с кодом 404.
+        1. Пытаемся получить объект пользователя в базе, если это не удастся,
+        то перехватываем ошибку User.DoesNotExist во вью-функции.
         2. Проверяем соответвие 'confirmation_code' запрашиваемого
         пользователя в базе и присланного.
         """
-        try:
-            user = get_object_or_404(User, username=attrs['username'])
-        except Exception:
-            raise serializers.ValidationError(USER_NOTFOUND)
+        user = User.objects.get(username=attrs['username'])
         if user.confirmation_code != attrs['confirmation_code']:
             raise serializers.ValidationError(
                 {'confirmation_code': 'Неверный код подтверждения'}

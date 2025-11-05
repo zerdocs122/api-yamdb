@@ -19,13 +19,12 @@ class UserAdmin(BaseUserAdmin):
     list_editable = ('role', 'bio')
     empty_value_display = '-пусто-'
 
+    @admin.display(description='Отзывов оставлено')
     def number_of_reviews(self, obj):
         """Подсчет оставленных отзывов пользователем."""
-        return obj.reviews.count()
+        return obj.review.count()
 
+    @admin.display(description='Комментариев оставлено')
     def number_of_comments(self, obj):
         """Подсчет оставленных комментариев пользователем."""
-        return obj.comments.count()
-
-    number_of_reviews.short_description = 'Отзывов оставлено'
-    number_of_comments.short_description = 'Комментариев оставлено'
+        return obj.comment.count()

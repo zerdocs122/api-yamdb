@@ -3,17 +3,15 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from api.constants import MODELS_CONSTANTS, ROLES
-from .validators import unacceptable_name
-from .validators import MainUsernameValidator
+from api.constants import MODELS_CONSTANTS, ROLE_ADMIN, ROLE_MODERATOR, ROLES
+from api.utils import get_role_length
+from .validators import username_validator
 
 
 class User(AbstractUser):
     """Задание расширенной модели пользователя."""
 
-    ROLE_CHOICES = ROLES
     email = models.EmailField(blank=False, null=False, unique=True)
-    username_validator = MainUsernameValidator()
     username = models.CharField(
         _('username'),
         max_length=MODELS_CONSTANTS['username'],
@@ -22,7 +20,7 @@ class User(AbstractUser):
             'Обязательное поле, длинной до 150 символов. '
             'Буквы, числа или спец-сиволы @/./+/-/_ .'
         ),
-        validators=[username_validator, unacceptable_name],
+        validators=[username_validator,],
         error_messages={
             "unique": _('Такое имя пользователся уже существует.'),
         },
@@ -39,14 +37,15 @@ class User(AbstractUser):
     )
     role = models.CharField(
         verbose_name='Роль',
-        max_length=MODELS_CONSTANTS['role'],
-        choices=ROLE_CHOICES,
+        max_length=get_role_length(ROLES),
+        choices=ROLES,
         default='user',
     )
 
     class Meta:
         """Meta класс модели User."""
 
+        ordering = ('role',)
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
         constraints = [
@@ -59,9 +58,9 @@ class User(AbstractUser):
     @property
     def is_admin(self):
         """Определение роли администратора в проекте."""
-        return (self.is_superuser and self.is_staff) or self.role == 'admin'
+        return (self.is_superuser and self.is_staff) or self.role == ROLE_ADMIN
 
     @property
     def is_moderator(self):
         """Определение роли модератора в проекте."""
-        return self.role == 'moderator'
+        return self.role == ROLE_MODERATOR

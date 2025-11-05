@@ -1,19 +1,20 @@
 """Константы приложения API."""
-from api.utils import get_role_length
-
 API_VERSION = 'v1'
 ACCEPTABLE_HTTP_METHODS = ['get', 'post', 'patch', 'delete']
+REGEXP_PATTERN = r'^[\w.@+-]+\Z'
 UNACCEPTABLE_USERNAMES = ['me']
+ROLE_USER: str = 'user'
+ROLE_MODERATOR: str = 'moderator'
+ROLE_ADMIN: str = 'admin'
 ROLES = [
-    ('user', 'Аутентифицированный пользователь'),
-    ('moderator', 'Модератор'),
-    ('admin', 'Администратор'),
+    (ROLE_USER, 'Аутентифицированный пользователь'),
+    (ROLE_MODERATOR, 'Модератор'),
+    (ROLE_ADMIN, 'Администратор'),
 ]
 MODELS_CONSTANTS = {
     "password": 128,
     "username": 150,
     "email": 254,
-    "role": get_role_length(ROLES),
     "reg_code": 50,
     'name': 256,
     'slug': 50,

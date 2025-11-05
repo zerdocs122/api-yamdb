@@ -1,27 +1,22 @@
 """Валидаторы для модели Users."""
-from django.core import validators
+import re
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from api.constants import UNACCEPTABLE_USERNAMES
+from api.constants import REGEXP_PATTERN, UNACCEPTABLE_USERNAMES
 
 
-class MainUsernameValidator(validators.RegexValidator):
-    """Валидация username на допустимые символы.
+def username_validator(value):
+    """Валидация username на допустимые символы и имена.
 
     Имя username должно содержать только буквы числа или
     специальные символы @/./+/-/_ .
     """
-
-    regex = r'^[\w.@+-]+\Z'
-    message = _(
-        'Имя username должно содержать только буквы '
-        'числа или специальные символы @/./+/-/_ .'
-    )
-    flags = 0
-
-
-def unacceptable_name(value):
-    """Валидация username на допустимые имена пользователей."""
+    if not re.match(REGEXP_PATTERN, value):
+        raise ValidationError(
+             'Имя username должно содержать только буквы '
+             'числа или специальные символы @/./+/-/_ .'
+        )
     if value in UNACCEPTABLE_USERNAMES:
         raise ValidationError(f'{value} - недопустимое имя пользователя.')
