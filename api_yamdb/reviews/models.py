@@ -29,7 +29,7 @@ class BaseTextModel(models.Model):
         User,
         on_delete=models.CASCADE,
         verbose_name='Автор',
-        related_name='%(class)ss'
+        related_name='%(class)s'
     )
     text = models.TextField('Текст')
     pub_date = models.DateTimeField('Дата публикации', auto_now_add=True)
