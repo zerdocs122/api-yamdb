@@ -19,20 +19,15 @@ class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
         slug_field='username', read_only=True
     )
+    score = serializers.IntegerField(
+        min_value=MODELS_CONSTANTS['score_min'],
+        max_value=MODELS_CONSTANTS['score_max'],
+    )
 
     class Meta:
         model = Review
         fields = ('id', 'title', 'text', 'author', 'score', 'pub_date')
         read_only_fields = ('title', 'author')
-
-    def validate_score(self, value):
-        """Валидация оценки произведения."""
-
-        if not 1 <= value <= 10:
-            raise serializers.ValidationError(
-                'Оценка должна быть целым числом от 1 до 10'
-            )
-        return value
 
     def validate(self, data):
         """Валидация на повторную рецензию."""
