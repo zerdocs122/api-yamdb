@@ -101,11 +101,7 @@ class TitlesWritesSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """Преобразует внутреннее представление данных в формат для ответа."""
-        return_data = super().to_representation(instance)
-        return_data['category'] = CategorySerializer(instance.category).data
-        return_data['genre'] = GenreSerializer(
-            instance.genre.all(), many=True).data
-        return return_data
+        return TitlesReadSerializer(instance).data
 
 
 class TitlesReadSerializer(serializers.ModelSerializer):
