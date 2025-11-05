@@ -7,7 +7,7 @@ from reviews.models import (
     Category, Comment, Genre, Review, Title
 )
 from api.constants import (
-    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES, USER_NOTFOUND
+    MODELS_CONSTANTS, UNACCEPTABLE_USERNAMES
 )
 from reviews.validators import validate_year
 
@@ -233,15 +233,12 @@ class RetriveTokenSerializer(serializers.Serializer):
         """Валидация пользователя и кода подтверждения.
 
         Очередность проверок:
-        1. Проверяем, есть ли пользователь в базе. Если нет, то
-        по условию задания возвращаем данные для ошибки с кодом 404.
+        1. Пытаемся получить объект пользователя в базе, если это не удастся,
+        то перехватываем ошибку User.DoesNotExist во вью-функции.
         2. Проверяем соответвие 'confirmation_code' запрашиваемого
         пользователя в базе и присланного.
         """
-        try:
-            user = get_object_or_404(User, username=attrs['username'])
-        except Exception:
-            raise serializers.ValidationError(USER_NOTFOUND)
+        user = User.objects.get(username=attrs['username'])
         if user.confirmation_code != attrs['confirmation_code']:
             raise serializers.ValidationError(
                 {'confirmation_code': 'Неверный код подтверждения'}

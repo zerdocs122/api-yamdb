@@ -9,6 +9,7 @@ from rest_framework import filters, permissions, viewsets, mixins
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -152,7 +153,7 @@ def registration_view(request):
     serializer = EmailConfirmationSerializer(data=request.data)
     try:
         serializer.is_valid(raise_exception=True)
-    except Exception:
+    except ValidationError:
         return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
 
     user = serializer.save()
@@ -176,12 +177,11 @@ def token_get_view(request):
     serializer = RetriveTokenSerializer(data=request.data)
     try:
         serializer.is_valid(raise_exception=True)
-    except Exception:
-        if (
-            'username' in serializer.errors
-            and serializer.errors['username'][0] == USER_NOTFOUND['username']
-        ):
-            return Response(serializer.errors, status=HTTPStatus.NOT_FOUND)
+    except User.DoesNotExist:
+        # Перехватываю User.DoesNotExist и возвращаю ошибку на русском языке
+        # с соответвующим статусом.
+        return Response(USER_NOTFOUND, status=HTTPStatus.NOT_FOUND)
+    except ValidationError:
         return Response(serializer.errors, status=HTTPStatus.BAD_REQUEST)
     user = User.objects.get(username=serializer.validated_data['username'])
     token = RefreshToken.for_user(user)
@@ -206,7 +206,7 @@ class UserViewSet(viewsets.ModelViewSet):
     PATCH-запрос.
     """
 
-    queryset = User.objects.all().order_by('id')
+    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
     filter_backends = (filters.SearchFilter,)

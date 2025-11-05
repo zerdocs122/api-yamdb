@@ -1,6 +1,8 @@
 """Вспомогательные функции проекта."""
 from django.core.mail import EmailMessage
 
+from api_yamdb.settings import DEFAULT_FROM_EMAIL
+
 
 def send_confirmation_to_email(user, confirmation_code):
     """Функция отправки сообщения с кодом подтверждения.
@@ -15,7 +17,7 @@ def send_confirmation_to_email(user, confirmation_code):
             f'Код подтверждения для пользователя {user.username}: '
             f'{confirmation_code}'
         ),
-        from_email='server YAMDB',
+        from_email=DEFAULT_FROM_EMAIL,
         to=[user.email],
         headers={'Content-Type': 'text/plain; charset=UTF-8'}
     )
