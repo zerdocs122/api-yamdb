@@ -23,10 +23,9 @@ class TitleAdmin(admin.ModelAdmin):
     list_filter = ('category', 'genre')
     list_display_links = ('name',)
 
+    @admin.display(description='Жанр')
     def get_genre(self, instance):
         return [genre.name for genre in instance.genre.all()]
-
-    get_genre.short_description = 'Жанр'
 
 
 @admin.register(Category)
