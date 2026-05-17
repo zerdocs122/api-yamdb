@@ -37,7 +37,7 @@ Python 3.12, Django 5.2, DRF (Django REST framework), API, JWT, pytest
 Клонировать репозиторий и перейти в него в командной строке:
 
 ```
-git clone https://github.com/dankut25/api-yamdb.git
+git clone https://github.com/zerdocs122/api-yamdb.git
 ```
 
 ```
@@ -324,3 +324,14 @@ genre            Х Ошибка загрузки: Отсутствуют обя
 
 [Михаил Анисимов](https://github.com/zerdocs122) --> работа с объектами отзывов и комментариев; создание рейтинга произведений. 
 
+## Структура репозитория
+
+api_yamdb/              - основной код проекта
+├── api/                - эндпоинты и сериализаторы
+├── reviews/            - модели отзывов и комментариев
+├── users/              - модели и логика пользователей
+└── static/data/        - CSV файлы с тестовыми данными
+postman_collection/     - коллекция запросов для Postman
+tests/                  - тесты проекта
+requirements.txt        - зависимости проекта
+pytest.ini              - конфигурация тестов
